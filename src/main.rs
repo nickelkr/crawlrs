@@ -6,7 +6,13 @@ struct Opts {
     url: String,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let opts = Opts::from_args();
-    println!("{}", opts.url);
+    let response = reqwest::get(&opts.url)
+        .await?
+        .text()
+        .await?;
+    println!("{}", response);
+    Ok(())
 }
