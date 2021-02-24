@@ -11,7 +11,9 @@ struct Opts {
 
 fn main() {
     let opts = Opts::from_args();
-    let page = commands::fetch_page(&opts.url).expect("GET FAILED");
+    let page = commands::Crawl::new(opts.url.clone())
+                  .execute()
+                  .expect("GET Failed");
 
     println!("{}", page);
 }
