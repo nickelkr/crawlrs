@@ -1,3 +1,5 @@
+use regex::Regex;
+
 pub struct Crawl {
     base_url: String
 }
@@ -11,10 +13,11 @@ impl Crawl {
         return crawl
     }
 
-    pub fn execute(&self) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn execute(&self) -> Result<Vec<String>, regex::Error> {
         let page = self.fetch_page(&self.base_url).expect("GET Failed");
+        let extracted_links = self.extract_links(page);
 
-        return Ok(page);
+        return extracted_links;
     }
 
     #[tokio::main]
@@ -25,6 +28,17 @@ impl Crawl {
             .await?;
 
         return Ok(response);
+    }
+
+    fn extract_links(&self, page: String) -> Result<Vec<String>, regex::Error> {
+        let regex = Regex::new("<a href=\"(?P<url>http[s]?://\\S+?)\">")?;
+        let mut links: Vec<String> = vec![];
+
+        for caps in regex.captures_iter(&page) {
+            links.push(caps["url"].to_string());
+        }
+
+        return Ok(links);
     }
 }
 
@@ -43,5 +57,28 @@ mod tests {
         let _ = Crawl::new(url).execute();
 
         mock.assert();
+    }
+
+    #[test]
+    fn extract_links() {
+        let data = "<html>
+        <body>
+            <p>sometext</p>
+            <a href=\"https://somelink.com/blog\">block</a>
+            <p>other text</p>
+            <a href=\"https://anotherlink.com/time\">time</a>
+            <p>end</p>
+        </body>
+        </html>";
+
+        let crawler = Crawl::new(String::from("url"));
+        let links = crawler.extract_links(data.to_string()).expect("Extract failed");
+
+        assert_eq!(links,
+            vec![
+                "https://somelink.com/blog",
+                "https://anotherlink.com/time"
+            ]
+        );
     }
 }
