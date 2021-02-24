@@ -6,11 +6,9 @@ pub struct Crawl {
 
 impl Crawl {
     pub fn new(base_url: String) -> Self {
-        let crawl = Crawl {
+        Crawl {
             base_url,
-        };
-
-        return crawl
+        }
     }
 
     pub fn execute(&self) {
@@ -26,7 +24,7 @@ impl Crawl {
             .text()
             .await?;
 
-        return Ok(response);
+        Ok(response)
     }
 
     fn extract_links(&self, page: String) -> Result<Vec<String>, regex::Error> {
@@ -37,10 +35,10 @@ impl Crawl {
             links.push(caps["url"].to_string());
         }
 
-        return Ok(links);
+        Ok(links)
     }
 
-    fn print_links(&self, url: &str, links: &Vec<String>) {
+    fn print_links(&self, url: &str, links: &[String]) {
         let formatted = links.join("\n\t");
         println!("{}\n\t{}", url, formatted);
     }

@@ -11,6 +11,6 @@ struct Opts {
 
 fn main() {
     let opts = Opts::from_args();
-    commands::Crawl::new(opts.url.clone())
+    commands::Crawl::new(opts.url)
               .execute()
 }
