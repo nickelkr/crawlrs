@@ -13,11 +13,10 @@ impl Crawl {
         return crawl
     }
 
-    pub fn execute(&self) -> Result<Vec<String>, regex::Error> {
+    pub fn execute(&self) {
         let page = self.fetch_page(&self.base_url).expect("GET Failed");
-        let extracted_links = self.extract_links(page);
-
-        return extracted_links;
+        let extracted_links = self.extract_links(page).expect("EXTRACT failed");
+        self.print_links(&self.base_url, &extracted_links);
     }
 
     #[tokio::main]
@@ -39,6 +38,11 @@ impl Crawl {
         }
 
         return Ok(links);
+    }
+
+    fn print_links(&self, url: &str, links: &Vec<String>) {
+        let formatted = links.join("\n\t");
+        println!("{}\n\t{}", url, formatted);
     }
 }
 

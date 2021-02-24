@@ -11,11 +11,6 @@ struct Opts {
 
 fn main() {
     let opts = Opts::from_args();
-    let links = commands::Crawl::new(opts.url.clone())
-                  .execute()
-                  .expect("GET Failed");
-
-    for link in links {
-        println!("{}", link);
-    }
+    commands::Crawl::new(opts.url.clone())
+              .execute()
 }
