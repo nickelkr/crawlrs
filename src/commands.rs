@@ -18,7 +18,7 @@ impl Crawl {
     }
 
     #[tokio::main]
-    pub async fn fetch_page(&self, url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    async fn fetch_page(&self, url: &str) -> Result<String, Box<dyn std::error::Error>> {
         let response = reqwest::get(url)
             .await?
             .text()
