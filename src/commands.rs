@@ -16,7 +16,11 @@ impl Crawl {
     pub fn new(base_url: String, timeout: u64) -> Self {
         let visited = BTreeSet::new();
 
-        Crawl { base_url, timeout, visited }
+        Crawl {
+            base_url,
+            timeout,
+            visited,
+        }
     }
 
     pub fn execute(&mut self) {
@@ -25,6 +29,7 @@ impl Crawl {
 
         tx.send(self.base_url.to_string())
             .expect("Failed to send msg");
+
         loop {
             let link = match rx.recv_timeout(Duration::from_millis(self.timeout)) {
                 Ok(link) => link,
@@ -37,10 +42,11 @@ impl Crawl {
                 }
             };
 
-            if self.has_visited(link.to_string()) { continue; }
+            if self.has_visited(link.to_string()) {
+                continue;
+            }
 
             let tx = tx.clone();
-
             pool.execute(move || {
                 let page = helpers::fetch_page(&link).expect("GET Failed");
                 let extracted_links = helpers::extract_links(page).expect("EXTRACT failed");
