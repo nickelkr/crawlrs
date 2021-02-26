@@ -1,47 +1,84 @@
 use regex::Regex;
+use threadpool::ThreadPool;
+
+use std::collections::BTreeSet;
+use std::sync::mpsc::{self, RecvTimeoutError};
+use std::time::Duration;
 
 pub struct Crawl {
-    base_url: String
+    base_url: String,
 }
 
 impl Crawl {
     pub fn new(base_url: String) -> Self {
-        Crawl {
-            base_url,
-        }
+        Crawl { base_url }
     }
 
     pub fn execute(&self) {
-        let page = self.fetch_page(&self.base_url).expect("GET Failed");
-        let extracted_links = self.extract_links(page).expect("EXTRACT failed");
-        self.print_links(&self.base_url, &extracted_links);
-    }
+        let (tx, rx) = mpsc::channel();
+        let mut visited = BTreeSet::new();
+        let pool = ThreadPool::new(5);
 
-    #[tokio::main]
-    async fn fetch_page(&self, url: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let response = reqwest::get(url)
-            .await?
-            .text()
-            .await?;
+        tx.send(self.base_url.to_string())
+            .expect("Failed to send msg");
+        loop {
+            let link = match rx.recv_timeout(Duration::from_millis(1000)) {
+                Ok(link) => link,
+                Err(RecvTimeoutError::Timeout) => {
+                    break;
+                }
+                Err(RecvTimeoutError::Disconnected) => {
+                    println!("Disconnected");
+                    break;
+                }
+            };
 
-        Ok(response)
-    }
+            if visited.contains(&link) {
+                continue;
+            }
 
-    fn extract_links(&self, page: String) -> Result<Vec<String>, regex::Error> {
-        let regex = Regex::new("<a href=\"(?P<url>http[s]?://\\S+?)\">")?;
-        let mut links: Vec<String> = vec![];
+            visited.insert(link.to_string());
+            let tx = tx.clone();
 
-        for caps in regex.captures_iter(&page) {
-            links.push(caps["url"].to_string());
+            pool.execute(move || {
+                let page = fetch_page(&link).expect("GET Failed");
+                let extracted_links = extract_links(page).expect("EXTRACT failed");
+
+                print_links(&link, &extracted_links);
+
+                for link in extracted_links {
+                    tx.send(link).expect("Failed to send msg");
+                }
+            });
         }
 
-        Ok(links)
+        pool.join();
+        println!("Finished");
+    }
+}
+
+#[tokio::main]
+async fn fetch_page(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    println!("DEBUG: fetch page {}", &url);
+    let response = reqwest::get(url).await?.text().await?;
+
+    Ok(response)
+}
+
+fn extract_links(page: String) -> Result<Vec<String>, regex::Error> {
+    let regex = Regex::new("<a href=\"(?P<url>http[s]?://\\S+?)\">")?;
+    let mut links: Vec<String> = vec![];
+
+    for caps in regex.captures_iter(&page) {
+        links.push(caps["url"].to_string());
     }
 
-    fn print_links(&self, url: &str, links: &[String]) {
-        let formatted = links.join("\n\t");
-        println!("{}\n\t{}", url, formatted);
-    }
+    Ok(links)
+}
+
+fn print_links(url: &str, links: &[String]) {
+    let formatted = links.join("\n\t");
+    println!("{}\n\t{}", url, formatted);
 }
 
 #[cfg(test)]
@@ -53,16 +90,14 @@ mod tests {
     #[test]
     fn test_fetch_page() {
         let url = format!("{}/", &mockito::server_url());
-        let mock = mock("GET", "/")
-            .with_body("body")
-            .create();
-        let _ = Crawl::new(url).execute();
+        let mock = mock("GET", "/").with_body("body").create();
+        let _ = fetch_page(&url);
 
         mock.assert();
     }
 
     #[test]
-    fn extract_links() {
+    fn test_extract_links() {
         let data = "<html>
         <body>
             <p>sometext</p>
@@ -73,14 +108,11 @@ mod tests {
         </body>
         </html>";
 
-        let crawler = Crawl::new(String::from("url"));
-        let links = crawler.extract_links(data.to_string()).expect("Extract failed");
+        let links = extract_links(data.to_string()).expect("Extract failed");
 
-        assert_eq!(links,
-            vec![
-                "https://somelink.com/blog",
-                "https://anotherlink.com/time"
-            ]
+        assert_eq!(
+            links,
+            vec!["https://somelink.com/blog", "https://anotherlink.com/time"]
         );
     }
 }

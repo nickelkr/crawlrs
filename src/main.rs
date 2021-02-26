@@ -8,9 +8,7 @@ struct Opts {
     url: String,
 }
 
-
 fn main() {
     let opts = Opts::from_args();
-    commands::Crawl::new(opts.url)
-              .execute()
+    commands::Crawl::new(opts.url).execute()
 }
