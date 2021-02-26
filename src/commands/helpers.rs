@@ -2,7 +2,6 @@ use regex::Regex;
 
 #[tokio::main]
 pub async fn fetch_page(url: &str) -> Result<String, Box<dyn std::error::Error>> {
-    println!("DEBUG: fetch page {}", &url);
     let response = reqwest::get(url).await?.text().await?;
 
     Ok(response)
