@@ -7,11 +7,12 @@ use std::time::Duration;
 
 pub struct Crawl {
     base_url: String,
+    timeout: u64,
 }
 
 impl Crawl {
-    pub fn new(base_url: String) -> Self {
-        Crawl { base_url }
+    pub fn new(base_url: String, timeout: u64) -> Self {
+        Crawl { base_url, timeout }
     }
 
     pub fn execute(&self) {
@@ -22,7 +23,7 @@ impl Crawl {
         tx.send(self.base_url.to_string())
             .expect("Failed to send msg");
         loop {
-            let link = match rx.recv_timeout(Duration::from_millis(1000)) {
+            let link = match rx.recv_timeout(Duration::from_millis(self.timeout)) {
                 Ok(link) => link,
                 Err(RecvTimeoutError::Timeout) => {
                     break;
@@ -90,15 +91,17 @@ mod tests {
     #[test]
     fn test_execute() {
         let host = &mockito::server_url();
-        let body = format!("<html>
+        let body = format!(
+            "<html>
         <body>
             <a href=\"{}/two\">TWO</a>
         </body>
         </html>",
-        host);
+            host
+        );
         let mock_index = mock("GET", "/").with_body(body).create();
         let mock_two = mock("GET", "/two").with_body("Ok").create();
-        let crawl = Crawl::new(format!("{}/", host));
+        let crawl = Crawl::new(format!("{}/", host), 1000);
 
         crawl.execute();
         mock_index.assert();
