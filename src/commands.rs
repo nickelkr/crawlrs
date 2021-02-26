@@ -88,6 +88,24 @@ mod tests {
     use mockito::mock;
 
     #[test]
+    fn test_execute() {
+        let host = &mockito::server_url();
+        let body = format!("<html>
+        <body>
+            <a href=\"{}/two\">TWO</a>
+        </body>
+        </html>",
+        host);
+        let mock_index = mock("GET", "/").with_body(body).create();
+        let mock_two = mock("GET", "/two").with_body("Ok").create();
+        let crawl = Crawl::new(format!("{}/", host));
+
+        crawl.execute();
+        mock_index.assert();
+        mock_two.assert();
+    }
+
+    #[test]
     fn test_fetch_page() {
         let url = format!("{}/", &mockito::server_url());
         let mock = mock("GET", "/").with_body("body").create();
